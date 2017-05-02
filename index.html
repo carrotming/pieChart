@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <style>
+        *{
+            padding: 0;
+            margin: 0;
+            border: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div id="container"></div>
+</body>
+<script src="konva.js"></script>
+<script>
+
+   window.onload=function (){
+       //舞台
+       var stage=new Konva.Stage({
+           width:window.innerWidth,
+           height:window.innerHeight,
+           container:'container'
+       });
+       //画布层
+       var layer = new Konva.Layer({});
+        //把画布层放入舞台
+       stage.add(layer);
+       var data=[
+           {name:'广州',value:0.25,color:'red'},
+           {name:'深圳',value:0.15,color:'yellow'},
+           {name:'珠海',value:0.15,color:'blue'},
+           {name:'东莞',value:0.2,color:'green'},
+           {name:'中山',value:0.1,color:'black'},
+           {name:'江门',value:0.15,color:'pink'}
+       ];
+
+        //圆的中心
+       var x0=stage.width()/2;
+       var y0=stage.height()/2;
+        //外圆半径
+       var outR=180;
+        //扇形半径
+       var insideR=160;
+        //创建画扇形的对象
+       var sector=new DrawSector({
+
+           x:x0, //圆心x
+           y:y0, //圆心y
+           outArc:outR,//外圆半径
+           outStroke:'#ccc', //外圆颜色
+           outStrokeWidth:5,//外圆宽度
+           insideArc:insideR,//扇形的半径
+           dataArr:data//数据数组
+       });
+
+       sector.Render(layer);
+
+       layer.draw();
+
+       stage.on('contentClick',function (){
+           if(sector.flag)     //防止多次点击
+               sector.move();
+       })
+   };
+    
+    function DrawSector(option){
+         this._init(option);
+    }
+   DrawSector.prototype={
+       constructor:DrawSector,
+       _init:function (option){
+           var option=option||{};
+           //坐标X
+           this.x=option.x;
+           //坐标y
+           this.y=option.y;
+           //外圆半径
+           this.outArc=option.outArc;
+           //扇形半径
+           this.insideArc=option.insideArc;
+           //外圆颜色
+           this.outStroke=option.outStroke;
+           //外圆宽度
+           this.outStrokeWidth=option.outStrokeWidth;
+           //数据数组
+           this.dataArr=option.dataArr;
+           //动画索引
+           this.animationIndex=0;
+           //标记
+           this.flag=true;
+       },
+       Render:function (layer){
+           //保存this;
+           var self=this;
+           //总数组
+          this.group=new Konva.Group({
+              x:0,
+              y:0
+          });
+           //把总数组放入画布层
+           layer.add(this.group);
+
+           //画外圆 前面变量名字固定写法 后面同理,不能更改
+           var ourCircle=new Konva.Circle({
+               x:this.x,
+               y:this.y,
+               radius:this.outArc,
+               stroke:this.outStroke,
+               strokeWidth:this.outStrokeWidth
+           });
+           //把圆放到数组中
+           this.group.add(ourCircle);
+
+           //2.扇形组
+           this.wedgeGroup = new Konva.Group({});
+           this.group.add(this.wedgeGroup);
+
+           //3.区域组
+           this.areaGroup = new Konva.Group({});
+           this.group.add(this.areaGroup);
+
+           //4.文字组
+           this.textGroup = new Konva.Group({});
+           this.group.add(this.textGroup);
+           //开始的角度 12点开始画
+           var beginDeg=-90;
+           this.dataArr.forEach(function (obj,index){
+               //循环遍历数组画扇形  wedge画扇形方法
+               var sector=new Konva.Wedge({
+                   //圆心
+                   x: self.x,
+                   y:self.y,
+                   //半径
+                   radius:self.insideArc,
+                   //填充颜色
+                   fill:obj.color,
+                   //扇形角度
+                   angle:obj.value * 360,
+                   //开始角度 旋转角度
+                   rotation:beginDeg
+               });
+               //放入扇形数组中
+               self.wedgeGroup.add(sector);
+
+               //文字角度 开始角度+扇形角度一半
+               var textDeg=beginDeg+obj.value*360*0.5;
+               //文字的左上角x起点
+               var disX=self.x+Math.cos(textDeg*Math.PI/180)*(self.insideArc+40);
+               //文字的左上角y起点
+               var disY=self.y+Math.sin(textDeg*Math.PI/180)*(self.insideArc+40);
+               //文字内容
+               var context=obj.name+obj.value*100+'%';
+               //画文字
+               var text=new Konva.Text({
+                  x:disX,
+                   y:disY,
+                   text:context,
+                   fill:obj.color,
+                   fontSize:20,
+                   fontFamily:'微软雅黑',
+                   align:'center'
+               })
+               //文字微调处理
+               if (textDeg > 90 && textDeg < 270){
+                   text.x(disX - text.width());
+               }
+               if (index==2){
+                   text.x(disX - text.width()+40);
+               }
+               if (index==5){
+                   text.x(disX - text.width()+30);
+                   text.y(disY - text.height());
+               }
+               //把文字放入文字数组中
+               self.textGroup.add(text);
+
+               //画矩形区域
+               var areaX = self.x + self.outArc + 200;
+               //垂直间隔
+               var areaY = self.y + 30 * index;
+               //固定宽高
+               var areaWidth = 60;
+               var areaHeight = 20;
+               var rect = new Konva.Rect({
+                   x:areaX,
+                   y:areaY,
+                   width:areaWidth,
+                   height:areaHeight,
+                   fill:obj.color
+               });
+               self.areaGroup.add(rect);
+               //画矩形的文字
+               var textX = areaX + 100;
+               var textY = areaY ;
+               var textR=new Konva.Text({
+                   x:textX,
+                   y:textY,
+                   text:obj.name,
+                   fill:obj.color,
+                   fontSize:20,
+                   fontFamily:'微软雅黑',
+                   align:'center'
+               });
+               self.textGroup.add(textR);
+
+               //更新旋转角度  放最后
+               beginDeg+=obj.value * 360;
+
+
+           })
+       },
+       //点击执行的方法
+       move:function (){
+           //保存this
+           var self=this;
+           self.flag=false;
+
+           //拿到所有扇形
+           var Wedge=this.wedgeGroup.getChildren();
+
+           //让所有的扇形的角度都为零 默认this.animationIndex==0
+           if(this.animationIndex==0){
+               //遍历所有扇形拿出角度变为零
+               Wedge.each(function (obj,index){
+                   //这样设置值
+                   obj.angle(0);
+               })
+           }
+            //每个扇形数据的索引
+           var WedgeArr=Wedge[this.animationIndex];
+           WedgeArr.to({
+               //角度由0到指定的度数
+               angle:self.dataArr[self.animationIndex].value * 360,
+               //延迟时间
+               duration:self.dataArr[self.animationIndex].value,
+               //相当于回调动画 结束后执行
+               onFinish:function () {
+                   //让动画索引增加
+                   self.animationIndex++;
+                   if (self.animationIndex >= self.dataArr.length){
+                       self.animationIndex = 0;
+                       self.flag=true;
+                       return;
+                   }
+                   //递归调用
+                   self.move();
+               }
+           })
+       }
+   }
+</script>
+</html>
